@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Игрок - Статистика руин</title>
+    <link rel="icon" href="ruins.ico" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="player.js" defer></script>
+  </head>
+  <body>
+    <div class="background-glow"></div>
+    <header class="hero hero--player">
+      <div class="hero__content">
+        <p class="eyebrow">Рогалик: Руины</p>
+        <h1 id="playerName">Игрок</h1>
+        <p class="lead" id="playerMeta">Загрузка...</p>
+        <a class="refresh-button" href="index.html">Вернуться на дашборд</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="section reveal">
+        <h2>Профиль</h2>
+        <div class="active-runs">
+          <div class="run-card">
+            <h3>Основные данные</h3>
+            <ul id="playerProfile"></ul>
+          </div>
+          <div class="run-card">
+            <h3>Открытые герои</h3>
+            <ul id="playerUnlockedHeroes"></ul>
+          </div>
+          <div class="run-card">
+            <h3>Рассылки</h3>
+            <ul id="playerBroadcasts"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <h2>Общие показатели</h2>
+        <div class="summary-grid" id="playerSummary"></div>
+      </section>
+
+      <section class="section reveal">
+        <h2>Активный забег</h2>
+        <div id="activeRunCard" class="active-runs"></div>
+      </section>
+
+      <section class="section reveal">
+        <h2>Сезоны</h2>
+        <div id="playerSeasons" class="active-runs"></div>
+      </section>
+
+      <section class="section reveal">
+        <h2>Распределения</h2>
+        <div class="active-runs">
+          <div class="run-card">
+            <h3>Смерти по этажам</h3>
+            <ul id="playerDeaths"></ul>
+          </div>
+          <div class="run-card">
+            <h3>Победы по типу врага</h3>
+            <ul id="playerKills"></ul>
+          </div>
+          <div class="run-card">
+            <h3>Запуски героев</h3>
+            <ul id="playerHeroes"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <h2>Забеги</h2>
+        <div class="run-card">
+          <ul id="playerRuns"></ul>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <h2>Экономика</h2>
+        <div class="active-runs">
+          <div class="run-card">
+            <h3>Покупки звёзд</h3>
+            <ul id="playerPurchases"></ul>
+          </div>
+          <div class="run-card">
+            <h3>Действия за звёзды</h3>
+            <ul id="playerActions"></ul>
+          </div>
+          <div class="run-card">
+            <h3>Награды</h3>
+            <ul id="playerBadges"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <h2>Сводка по забегам</h2>
+        <div class="summary-grid" id="playerRunSummary"></div>
+      </section>
+    </main>
+  </body>
+</html>

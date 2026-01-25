@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  ruins-stats:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DB_PATH=/data/ruins.db
+      - GAME_DATA_DIR=/data/game
+    volumes:
+      - ${HOST_DB_PATH}:/data/ruins.db:ro
+      - ${HOST_GAME_DATA_DIR}:/data/game:ro

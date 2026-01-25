@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Статистика руин</title>
+    <link rel="icon" href="ruins.ico" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="background-glow"></div>
+    <header class="hero">
+      <div class="hero__content">
+        <p class="eyebrow">Рогалик: Руины</p>
+        <h1>Хроники погружения в руины</h1>
+        <p class="lead">
+          Панель живой телеметрии: забеги, этажи, противники и экономика
+          у костра между спусками.
+        </p>
+        <div class="hero__meta">
+          <div class="meta-card">
+            <span class="meta-label">Сформировано</span>
+            <span class="meta-value" id="generatedAt">--</span>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Активные забеги</span>
+            <span class="meta-value" id="activeRuns">0</span>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">Средний забег (мин)</span>
+            <span class="meta-value" id="avgRunMinutes">0</span>
+          </div>
+          <button class="refresh-button" id="refreshButton">Обновить данные</button>
+        </div>
+      </div>
+      <div class="hero__panel">
+        <div class="panel-card">
+          <h2>Главные цифры сезона</h2>
+          <ul>
+            <li><span>Игроков (всего)</span><strong id="totalUsersAll">0</strong></li>
+            <li><span>Игроков в сезоне</span><strong id="totalUsersSeason">0</strong></li>
+            <li><span>Забегов в сезоне</span><strong id="totalRunsSeason">0</strong></li>
+            <li><span>Опыт в сезоне</span><strong id="totalXpSeason">0</strong></li>
+            <li><span>Средний максимум этажа</span><strong id="avgMaxFloorSeason">0</strong></li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="section section--summary reveal">
+        <h2>Пульс руин</h2>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <h3>Павших героев</h3>
+            <p id="totalDeaths">0</p>
+          </div>
+          <div class="summary-card">
+            <h3>Побед над врагами</h3>
+            <p id="totalKills">0</p>
+          </div>
+          <div class="summary-card">
+            <h3>Найдено сокровищ</h3>
+            <p id="totalTreasures">0</p>
+          </div>
+          <div class="summary-card">
+            <h3>Открыто сундуков</h3>
+            <p id="totalChests">0</p>
+          </div>
+          <div class="summary-card">
+            <h3>Пройдено обучение</h3>
+            <p id="tutorialRate">0%</p>
+          </div>
+          <div class="summary-card">
+            <h3>Куплено звёзд</h3>
+            <p id="starsBought">0</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="section__header">
+          <h2>Активность во времени</h2>
+          <p>Сколько забегов начинается ежедневно.</p>
+        </div>
+        <div class="chart-card">
+          <canvas id="runsPerDayChart"></canvas>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="section__header">
+          <h2>Битвы и выживание</h2>
+          <p>Где чаще падают и кого чаще побеждают.</p>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>Смерти по этажам</h3>
+            <canvas id="deathsByFloorChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Победы по типу врага</h3>
+            <canvas id="killsByTypeChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="section__header">
+          <h2>Герои и прогресс</h2>
+          <p>Кем играют чаще и как высоко поднимаются забеги.</p>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>Популярность героев</h3>
+            <canvas id="heroRunsChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Открытые герои</h3>
+            <canvas id="unlockedHeroesChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Максимальные этажи</h3>
+            <canvas id="runMaxFloorChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="section__header">
+          <h2>Экономика рун</h2>
+          <p>Как звёзды помогают вернуться в руины.</p>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>Траты звёзд по действию</h3>
+            <canvas id="actionsChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Покупки</h3>
+            <canvas id="purchasesChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="section__header">
+          <h2>Забеги сегодня и за неделю</h2>
+          <p>Ритм экспедиций в текущем времени.</p>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-card summary-card--muted">
+            <h3>Сегодня забегов</h3>
+            <p id="runsToday">0</p>
+          </div>
+          <div class="summary-card summary-card--muted">
+            <h3>Сегодня средний этаж</h3>
+            <p id="avgFloorToday">0</p>
+          </div>
+          <div class="summary-card summary-card--muted">
+            <h3>За 7 дней забегов</h3>
+            <p id="runsWeek">0</p>
+          </div>
+          <div class="summary-card summary-card--muted">
+            <h3>За 7 дней средний этаж</h3>
+            <p id="avgFloorWeek">0</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="section__header">
+          <h2>Активные забеги</h2>
+          <p>Текущие этажи, характеристики героя и противники.</p>
+        </div>
+        <div id="activeRunsList" class="active-runs"></div>
+      </section>
+
+      <section class="section section--split reveal">
+        <div class="panel-card leaderboard">
+          <h2>Лидеры глубины</h2>
+          <ul id="leaderboardList"></ul>
+        </div>
+        <div class="panel-card seasons">
+          <h2>Сезонный срез</h2>
+          <div id="seasonList"></div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="section__header">
+          <h2>Все игроки</h2>
+          <p>Полный список игроков с переходом к подробной статистике.</p>
+        </div>
+        <div class="panel-card">
+          <ul id="allPlayersList" class="players-list"></ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Панель статистики руин - сборка Codex.</p>
+    </footer>
+  </body>
+</html>
