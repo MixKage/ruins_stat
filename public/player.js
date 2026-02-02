@@ -225,6 +225,7 @@ const init = async () => {
     card.innerHTML = `
       <h3>Забег #${run.run_id}</h3>
       <div class="run-meta">
+        <span>Герой: ${run.hero || "неизвестно"}</span>
         <span>Этаж: ${run.floor ?? "-"}</span>
         <span>Фаза: ${run.phase || "неизвестно"}</span>
         <span>Старт: ${formatDate(run.started_at)}</span>

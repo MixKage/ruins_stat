@@ -121,6 +121,17 @@ def extract_hero_id(state):
     return None
 
 
+def resolve_hero_name(state, hero_name_map):
+    hero_id = extract_hero_id(state)
+    if hero_id is None:
+        return "-"
+    if isinstance(hero_id, dict):
+        hero_id = hero_id.get("id") or hero_id.get("name")
+    if hero_id is None:
+        return "-"
+    return hero_name_map.get(str(hero_id), str(hero_id))
+
+
 def is_in_season(dt_value, start, end):
     if not dt_value:
         return False
@@ -166,20 +177,11 @@ def compute_season_stats(
 
     kills_by_type = remap_counter(kills_by_type, enemy_name_map)
 
-    unlocked_heroes = Counter()
-    for row in users:
-        if row["id"] not in season_user_ids:
-            continue
-        unlocked = parse_json(row["unlocked_heroes_json"], [])
-        if isinstance(unlocked, list):
-            for hero in unlocked:
-                unlocked_heroes[str(hero)] += 1
-    unlocked_heroes = remap_counter(unlocked_heroes, hero_name_map)
-
     run_max_floor = Counter()
     runs_per_day = Counter()
     run_durations = []
     season_hero_runs = Counter()
+    season_run_user_ids = set()
     active_runs = 0
     today = date.today()
     week_start = today - timedelta(days=6)
@@ -192,6 +194,7 @@ def compute_season_stats(
         started = parse_dt(row["started_at"])
         if not is_in_season(started, season_start, season_end):
             continue
+        season_run_user_ids.add(row["user_id"])
         floor = row["max_floor"] or 0
         run_max_floor[str(floor)] += 1
         if started:
@@ -215,6 +218,16 @@ def compute_season_stats(
             season_hero_runs[str(hero_id)] += 1
 
     season_hero_runs = remap_counter(season_hero_runs, hero_name_map)
+    unlocked_heroes = Counter()
+    season_participants = season_user_ids | season_run_user_ids
+    for row in users:
+        if row["id"] not in season_participants:
+            continue
+        unlocked = parse_json(row["unlocked_heroes_json"], [])
+        if isinstance(unlocked, list):
+            for hero in unlocked:
+                unlocked_heroes[str(hero)] += 1
+    unlocked_heroes = remap_counter(unlocked_heroes, hero_name_map)
     avg_run_minutes = safe_round(
         sum(run_durations) / len(run_durations), 2
     ) if run_durations else 0
@@ -603,6 +616,7 @@ def main():
         if not row["is_active"]:
             continue
         state = parse_json(row["state_json"], {})
+        hero_name = resolve_hero_name(state, hero_name_map)
         player = state.get("player", {}) if isinstance(state, dict) else {}
         weapon = player.get("weapon", {}) if isinstance(player, dict) else {}
         enemies = state.get("enemies", []) if isinstance(state, dict) else []
@@ -615,6 +629,7 @@ def main():
                 "started_at": row["started_at"],
                 "floor": state.get("floor"),
                 "phase": state.get("phase"),
+                "hero": hero_name,
                 "tutorial": state.get("tutorial"),
                 "player": {
                     "hp": player.get("hp"),
@@ -793,6 +808,7 @@ def main():
             if row["user_id"] == u["id"] and row["is_active"]:
                 state = parse_json(row["state_json"], {})
                 if isinstance(state, dict):
+                    hero_name = resolve_hero_name(state, hero_name_map)
                     player = state.get("player", {}) or {}
                     weapon = player.get("weapon", {}) or {}
                     enemies = state.get("enemies", []) or []
@@ -801,6 +817,7 @@ def main():
                         "started_at": row["started_at"],
                         "floor": state.get("floor"),
                         "phase": state.get("phase"),
+                        "hero": hero_name,
                         "player": {
                             "hp": player.get("hp"),
                             "hp_max": player.get("hp_max"),

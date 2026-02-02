@@ -22,8 +22,20 @@ const baseOptions = {
   animation: { duration: 900 },
 };
 
-const toPairs = (pairs) =>
-  pairs.map(([label, value]) => ({ label, value }));
+const toPairs = (source) => {
+  if (!source) return [];
+  const pairs = Array.isArray(source)
+    ? source
+    : typeof source === "object"
+      ? Object.entries(source)
+      : [];
+  return pairs
+    .filter((item) => Array.isArray(item) && item.length >= 2)
+    .map(([label, value]) => ({
+      label: String(label),
+      value: Number(value) || 0,
+    }));
+};
 
 const setText = (id, value, formatter = numberFormat) => {
   const node = document.getElementById(id);
@@ -104,11 +116,16 @@ const isInSeason = (value, season) => {
 
 const formatPercentDelta = (value) => {
   if (value === null || Number.isNaN(value)) {
-    return "—";
+    return "0%";
   }
   const rounded = Math.round(value);
   if (rounded === 0) return "0%";
   return `${rounded > 0 ? "+" : ""}${rounded}%`;
+};
+
+const asNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 };
 
 const charts = [];
@@ -289,6 +306,7 @@ const buildActiveRuns = (runs) => {
       <h3>Забег #${run.run_id}</h3>
       <div class="run-meta">
         <span>Игрок: ${run.username || `ID ${run.user_id}`}</span>
+        <span>Герой: ${run.hero || "неизвестно"}</span>
         <span>Этаж: ${run.floor ?? "-"}</span>
         <span>Фаза: ${run.phase || "неизвестно"}</span>
         <span>Старт: ${formatDateTime(run.started_at)}</span>
@@ -428,12 +446,12 @@ const applySeason = (seasonKey) => {
   const prevSeasonStats = prevSeasonKey
     ? cachedData.seasons_stats?.[prevSeasonKey]
     : null;
-  const currentPlayers = summary.total_users_season || 0;
-  const prevPlayers = prevSeasonStats?.summary?.total_users_season || 0;
+  const currentPlayers = asNumber(summary.total_users_season, 0);
+  const prevPlayers = asNumber(prevSeasonStats?.summary?.total_users_season, 0);
   const interestDelta =
     prevPlayers > 0
       ? ((currentPlayers - prevPlayers) / prevPlayers) * 100
-      : null;
+      : 0;
 
   setText("activeRuns", summary.active_runs);
   setText("avgRunMinutes", summary.avg_run_minutes, decimalFormat);
@@ -606,9 +624,24 @@ const applySeason = (seasonKey) => {
     {
       id: "unlockedHeroesChart",
       build: (canvas) => {
-        const unlockedHeroes = toPairs(
+        const seasonUnlockedHeroes = toPairs(
           seasonData.distributions.unlocked_heroes || []
         );
+        const unlockedHeroes = (
+          seasonUnlockedHeroes.length
+            ? seasonUnlockedHeroes
+            : toPairs(cachedData.distributions?.unlocked_heroes || [])
+        )
+          .filter((item) => {
+            const normalized = item.label.trim().toLowerCase();
+            return normalized !== "рыцарь" && normalized !== "wanderer";
+          })
+          .sort((a, b) => {
+            if (b.value !== a.value) {
+              return b.value - a.value;
+            }
+            return a.label.localeCompare(b.label, "ru");
+          });
         buildChart(canvas, {
           type: "bar",
           data: {
@@ -623,9 +656,19 @@ const applySeason = (seasonKey) => {
           },
           options: {
             ...baseOptions,
-            plugins: { legend: { display: false } },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${numberFormat.format(ctx.parsed.y)} игроков`,
+                },
+              },
+            },
             scales: {
-              y: { ticks: { precision: 0 } },
+              y: {
+                ticks: { precision: 0 },
+                title: { display: true, text: "Игроков" },
+              },
               x: { ticks: { maxRotation: 0 } },
             },
           },
