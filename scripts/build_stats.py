@@ -18,10 +18,22 @@ def parse_json(text, default):
         return default
     if isinstance(text, (dict, list)):
         return text
-    try:
-        return json.loads(text)
-    except (json.JSONDecodeError, TypeError):
+    payload = text
+    for _ in range(3):
+        if isinstance(payload, (dict, list)):
+            break
+        if not isinstance(payload, (str, bytes, bytearray)):
+            break
+        try:
+            payload = json.loads(payload)
+        except (json.JSONDecodeError, TypeError):
+            return default
+
+    if isinstance(default, dict) and not isinstance(payload, dict):
         return default
+    if isinstance(default, list) and not isinstance(payload, list):
+        return default
+    return payload
 
 
 def load_json_file(path):
@@ -60,6 +72,8 @@ def safe_round(value, digits=2):
 
 
 def add_counter_from_json(counter, payload):
+    if not isinstance(payload, dict):
+        return
     for key, value in payload.items():
         try:
             counter[str(key)] += int(value)
@@ -75,6 +89,8 @@ def remap_counter(counter, name_map):
 
 
 def remap_dict_keys(payload, name_map):
+    if not isinstance(payload, dict):
+        return {}
     remapped = {}
     for key, value in payload.items():
         remapped[name_map.get(str(key), str(key))] = value
