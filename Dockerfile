@@ -2,12 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends sqlite3 \
-  && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir psycopg2-binary
 
 COPY scripts/ scripts/
 COPY public/ public/
+COPY data/ data/
 
 RUN chmod +x scripts/entrypoint.sh
 

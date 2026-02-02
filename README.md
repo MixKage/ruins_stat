@@ -1,6 +1,6 @@
 # Ruins Stats Dashboard
 
-Панель статистики для игры про спуск в руины. Генерирует `public/data/stats.json` из SQLite‑базы и показывает метрики, графики и детальные карточки игроков.
+Панель статистики для игры про спуск в руины. Генерирует `public/data/stats.json` из PostgreSQL‑базы и показывает метрики, графики и детальные карточки игроков.
 
 ## Структура
 - `scripts/build_stats.py` — сбор статистики из БД
@@ -9,18 +9,22 @@
 - `Dockerfile`, `docker-compose.yml` — запуск в контейнере
 
 ## Локальный запуск
-1) Укажите путь к базе и данным игры:
+1) Укажите подключение к базе:
 ```
-export DB_PATH=/Users/mixkage/files/ruins_secret_of_death/ruins.db
-export GAME_DATA_DIR=/Users/mixkage/files/ruins_secret_of_death/data
+export DATABASE_URL="postgresql://ruins_app:***@host:port/ruins"
 ```
 
-2) Соберите статистику:
+2) Установите зависимости:
+```
+pip install psycopg2-binary
+```
+
+3) Соберите статистику:
 ```
 python3 scripts/build_stats.py
 ```
 
-3) Запустите сервер:
+4) Запустите сервер:
 ```
 python3 scripts/server.py
 ```
@@ -28,10 +32,9 @@ python3 scripts/server.py
 Откройте `http://localhost:8000`.
 
 ## Docker (рекомендуется)
-1) Убедитесь, что `.env` содержит пути к базе и данным:
+1) Убедитесь, что `.env` содержит `DATABASE_URL`:
 ```
-HOST_DB_PATH=/Users/mixkage/files/ruins_secret_of_death/ruins.db
-HOST_GAME_DATA_DIR=/Users/mixkage/files/ruins_secret_of_death/data
+DATABASE_URL=postgresql://ruins_app:***@host:port/ruins
 ```
 
 2) Запуск:
@@ -49,6 +52,5 @@ docker compose up --build
 - `player.html?id=<id>` — карточка игрока
 
 ## Переменные окружения
-- `DB_PATH` — путь к SQLite базе
-- `GAME_DATA_DIR` — путь к папке данных игры (нужен для русских имён)
-
+- `DATABASE_URL` — строка подключения PostgreSQL
+- `GAME_DATA_DIR` — путь к папке данных игры (по умолчанию `./data`)

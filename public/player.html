@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="styles.css" />
     <script src="player.js" defer></script>
   </head>
-  <body>
+  <body class="player-page">
     <div class="background-glow"></div>
     <header class="hero hero--player">
       <div class="hero__content">
@@ -18,6 +18,24 @@
         <a class="refresh-button" href="index.html">Вернуться на дашборд</a>
       </div>
     </header>
+
+    <aside class="player-awards-widget" id="playerAwardsWidget">
+      <h3>Награды игрока</h3>
+      <div class="player-awards-top">
+        <div>
+          <span class="meta-label">XP</span>
+          <strong id="widgetXp">0</strong>
+        </div>
+        <div>
+          <span class="meta-label">Макс. этаж</span>
+          <strong id="widgetMaxFloor">0</strong>
+        </div>
+      </div>
+      <div class="run-section">
+        <strong>Полученные награды</strong>
+        <ul id="widgetBadges"></ul>
+      </div>
+    </aside>
 
     <main>
       <section class="section reveal">

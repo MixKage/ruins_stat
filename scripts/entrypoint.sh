@@ -1,8 +1,11 @@
 #!/usr/bin/env sh
 set -eu
 
-DB_PATH="${DB_PATH:-/data/ruins.db}"
-export DB_PATH
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "DATABASE_URL is not set" >&2
+  exit 1
+fi
 
 python3 scripts/build_stats.py
+echo "Ruins stats: build_stats.py completed successfully."
 python3 scripts/server.py

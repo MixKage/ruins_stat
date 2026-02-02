@@ -39,6 +39,16 @@ const setRaw = (id, value) => {
   }
 };
 
+const formatValue = (value) => {
+  if (value === null || value === undefined || value === "") return "?";
+  if (typeof value === "number") {
+    return Number.isInteger(value)
+      ? numberFormat.format(value)
+      : decimalFormat.format(Math.round(value * 100) / 100);
+  }
+  return value;
+};
+
 const formatUtcPlus3 = (isoString) => {
   const parsed = new Date(isoString);
   if (Number.isNaN(parsed.getTime())) {
@@ -50,7 +60,7 @@ const formatUtcPlus3 = (isoString) => {
   const year = shifted.getUTCFullYear();
   const hours = String(shifted.getUTCHours()).padStart(2, "0");
   const minutes = String(shifted.getUTCMinutes()).padStart(2, "0");
-  return `${day}.${month}.${year} ${hours}:${minutes}`;
+  return `${day}.${month}.${year} ${hours}:${minutes} GMT+3`;
 };
 
 const formatDateTime = (value) => {
@@ -58,12 +68,13 @@ const formatDateTime = (value) => {
   if (Number.isNaN(parsed.getTime())) {
     return value || "-";
   }
-  const day = String(parsed.getUTCDate()).padStart(2, "0");
-  const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
-  const year = parsed.getUTCFullYear();
-  const hours = String(parsed.getUTCHours()).padStart(2, "0");
-  const minutes = String(parsed.getUTCMinutes()).padStart(2, "0");
-  return `${day}.${month}.${year} ${hours}:${minutes}`;
+  const shifted = new Date(parsed.getTime() + 3 * 60 * 60 * 1000);
+  const day = String(shifted.getUTCDate()).padStart(2, "0");
+  const month = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const year = shifted.getUTCFullYear();
+  const hours = String(shifted.getUTCHours()).padStart(2, "0");
+  const minutes = String(shifted.getUTCMinutes()).padStart(2, "0");
+  return `${day}.${month}.${year} ${hours}:${minutes} GMT+3`;
 };
 
 const formatDateOnly = (value) => {
@@ -73,6 +84,31 @@ const formatDateOnly = (value) => {
     return `${parts[2]}.${parts[1]}.${parts[0]}`;
   }
   return value;
+};
+
+const parseDateValue = (value) => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isInSeason = (value, season) => {
+  if (!season) return true;
+  const dateValue = parseDateValue(value);
+  if (!dateValue) return false;
+  const start = season.started_at ? parseDateValue(season.started_at) : null;
+  const end = season.ended_at ? parseDateValue(season.ended_at) : null;
+  if (start && dateValue < start) return false;
+  if (end && dateValue > end) return false;
+  return true;
+};
+
+const formatPercentDelta = (value) => {
+  if (value === null || Number.isNaN(value)) {
+    return "—";
+  }
+  const rounded = Math.round(value);
+  if (rounded === 0) return "0%";
+  return `${rounded > 0 ? "+" : ""}${rounded}%`;
 };
 
 const charts = [];
@@ -114,6 +150,16 @@ const observeCharts = (builders) => {
     const canvas = document.getElementById(id);
     if (canvas) {
       chartObserver.observe(canvas);
+      const rect = canvas.getBoundingClientRect();
+      const inView = rect.top < window.innerHeight * 0.9 && rect.bottom > 0;
+      if (inView) {
+        const build = builderMap.get(id);
+        if (build && !built.has(id)) {
+          build(canvas);
+          built.add(id);
+          chartObserver.unobserve(canvas);
+        }
+      }
     }
   });
 };
@@ -139,42 +185,86 @@ const buildLeaderboard = (leaderboard) => {
   const list = document.getElementById("leaderboardList");
   if (!list) return;
   list.innerHTML = "";
+  if (!leaderboard.length) {
+    const item = document.createElement("tr");
+    item.innerHTML = "<td colspan=\"4\">Нет данных по выбранному сезону</td>";
+    list.appendChild(item);
+    return;
+  }
   leaderboard.forEach((entry, index) => {
-    const item = document.createElement("li");
-    item.innerHTML = `<span>#${index + 1} ${entry.username}</span><strong>${numberFormat.format(
-      entry.max_floor
-    )}F</strong>`;
+    const item = document.createElement("tr");
+    const hero = entry.hero || entry.max_floor_character || "-";
+    const floor = Number(entry.max_floor || 0);
+    const playerName = entry.username || `ID ${entry.id}`;
+    const playerCell = entry.id
+      ? `<a class="nickname-link" href="player.html?id=${entry.id}">${playerName}</a>`
+      : playerName;
+    item.innerHTML = `
+      <td>#${index + 1}</td>
+      <td>${playerCell}</td>
+      <td>${hero}</td>
+      <td>${numberFormat.format(floor)}</td>
+    `;
     list.appendChild(item);
   });
 };
 
-const buildSeasons = (seasons) => {
-  const container = document.getElementById("seasonList");
-  if (!container) return;
-  container.innerHTML = "";
-  if (!seasons.length) {
-    container.textContent = "No seasons recorded yet.";
+const updateActiveRunsToggle = (visibleCount, totalCount, expanded) => {
+  const controls = document.getElementById("activeRunsControls");
+  const toggle = document.getElementById("activeRunsToggle");
+  if (!controls || !toggle) return;
+  if (totalCount <= visibleCount) {
+    controls.hidden = true;
     return;
   }
-  seasons.forEach((season) => {
-    const card = document.createElement("div");
-    card.className = "season-card";
-    card.innerHTML = `
-      <strong>Сезон ${season.season_key}</strong>
-      <p>Максимальный этаж: ${numberFormat.format(season.max_floor)}</p>
-      <p>Всего забегов: ${numberFormat.format(season.total_runs)}</p>
-      <p>Герой вершины: ${season.max_floor_character || "неизвестно"}</p>
-    `;
-    container.appendChild(card);
+  controls.hidden = false;
+  toggle.textContent = expanded
+    ? "Свернуть"
+    : `Показать все (${totalCount - visibleCount})`;
+};
+
+const applyActiveRunsCollapse = (expanded, visibleCount) => {
+  const container = document.getElementById("activeRunsList");
+  if (!container) return;
+  const cards = Array.from(container.querySelectorAll(".run-card"));
+  cards.forEach((card, index) => {
+    const shouldHide = !expanded && index >= visibleCount;
+    card.classList.toggle("run-card--hidden", shouldHide);
   });
+  updateActiveRunsToggle(visibleCount, cards.length, expanded);
+};
+
+const setupActiveRunsCollapse = () => {
+  const container = document.getElementById("activeRunsList");
+  const toggle = document.getElementById("activeRunsToggle");
+  const controls = document.getElementById("activeRunsControls");
+  if (!container || !toggle || !controls) return;
+
+  const cards = Array.from(container.querySelectorAll(".run-card"));
+  if (!cards.length || cards[0].textContent === "Нет активных забегов.") {
+    controls.hidden = true;
+    return;
+  }
+
+  const firstRowTop = cards[0].offsetTop;
+  const visibleCount = cards.filter((card) => card.offsetTop === firstRowTop).length || 1;
+  let expanded = false;
+
+  applyActiveRunsCollapse(expanded, visibleCount);
+  toggle.onclick = () => {
+    expanded = !expanded;
+    applyActiveRunsCollapse(expanded, visibleCount);
+  };
 };
 
 const buildActiveRuns = (runs) => {
   const container = document.getElementById("activeRunsList");
+  const controls = document.getElementById("activeRunsControls");
   if (!container) return;
   container.innerHTML = "";
   if (!runs.length) {
     container.innerHTML = "<div class=\"run-card\">Нет активных забегов.</div>";
+    if (controls) controls.hidden = true;
     return;
   }
   runs.forEach((run) => {
@@ -188,7 +278,7 @@ const buildActiveRuns = (runs) => {
           (enemy) => `
           <li>
             <span>${enemy.name || "Неизвестный враг"}</span>
-            <strong>${enemy.hp ?? "?"}/${enemy.max_hp ?? "?"} HP</strong>
+            <strong>${formatValue(enemy.hp)}/${formatValue(enemy.max_hp)} HP</strong>
           </li>
         `
         )
@@ -206,16 +296,16 @@ const buildActiveRuns = (runs) => {
       <div class="run-section">
         <strong>Характеристики героя</strong>
         <ul>
-          <li><span>HP</span><strong>${player.hp ?? "?"}/${player.hp_max ?? "?"}</strong></li>
-          <li><span>ОД</span><strong>${player.ap ?? "?"}/${player.ap_max ?? "?"}</strong></li>
-          <li><span>Броня</span><strong>${player.armor ?? "?"}</strong></li>
-          <li><span>Точность</span><strong>${player.accuracy ?? "?"}</strong></li>
-          <li><span>Уклонение</span><strong>${player.evasion ?? "?"}</strong></li>
-          <li><span>Сила</span><strong>${player.power ?? "?"}</strong></li>
-          <li><span>Удача</span><strong>${player.luck ?? "?"}</strong></li>
+          <li><span>HP</span><strong>${formatValue(player.hp)}/${formatValue(player.hp_max)}</strong></li>
+          <li><span>ОД</span><strong>${formatValue(player.ap)}/${formatValue(player.ap_max)}</strong></li>
+          <li><span>Броня</span><strong>${formatValue(player.armor)}</strong></li>
+          <li><span>Точность</span><strong>${formatValue(player.accuracy)}</strong></li>
+          <li><span>Уклонение</span><strong>${formatValue(player.evasion)}</strong></li>
+          <li><span>Сила</span><strong>${formatValue(player.power)}</strong></li>
+          <li><span>Удача</span><strong>${formatValue(player.luck)}</strong></li>
           <li><span>Оружие</span><strong>${player.weapon || "неизвестно"}</strong></li>
-          <li><span>Зелья</span><strong>${player.potions ?? 0}</strong></li>
-          <li><span>Свитки</span><strong>${player.scrolls ?? 0}</strong></li>
+          <li><span>Зелья</span><strong>${formatValue(player.potions ?? 0)}</strong></li>
+          <li><span>Свитки</span><strong>${formatValue(player.scrolls ?? 0)}</strong></li>
         </ul>
       </div>
       <div class="run-section">
@@ -225,65 +315,184 @@ const buildActiveRuns = (runs) => {
     `;
     container.appendChild(card);
   });
+  setupActiveRunsCollapse();
 };
 
-const buildAllPlayers = (players) => {
-  const list = document.getElementById("allPlayersList");
-  if (!list) return;
-  list.innerHTML = "";
-  const sorted = [...players].sort((a, b) => {
-    if (b.max_floor !== a.max_floor) {
-      return b.max_floor - a.max_floor;
+const buildAllPlayers = (players, seasonKey, query = "") => {
+  const body = document.getElementById("allPlayersBody");
+  if (!body) return;
+  body.innerHTML = "";
+  const lowered = query.trim().toLowerCase();
+  const filtered = lowered
+    ? players.filter((player) =>
+        (player.username || "").toLowerCase().includes(lowered)
+      )
+    : players;
+  const sorted = [...filtered].sort((a, b) => {
+    const floorA = seasonKey
+      ? a.season_max_floor?.[seasonKey] ?? 0
+      : a.max_floor;
+    const floorB = seasonKey
+      ? b.season_max_floor?.[seasonKey] ?? 0
+      : b.max_floor;
+    if (floorB !== floorA) {
+      return floorB - floorA;
     }
-    return b.xp - a.xp;
+    return (a.username || "").localeCompare(b.username || "");
   });
   sorted.forEach((player) => {
-    const item = document.createElement("li");
-    item.innerHTML = `
-      <a href="player.html?id=${player.id}">
-        <span>${player.username}</span> <strong>Этаж ${numberFormat.format(player.max_floor)}</strong>
-      </a>
+    const seasonFloor = seasonKey
+      ? player.season_max_floor?.[seasonKey] ?? player.max_floor
+      : player.max_floor;
+    const isActive =
+      seasonKey && (player.season_participation || []).includes(seasonKey);
+    const playerUrl = `player.html?id=${player.id}`;
+    const playerName = player.username || `ID ${player.id}`;
+    const row = document.createElement("tr");
+    if (isActive) {
+      row.classList.add("player-active");
+    }
+    row.tabIndex = 0;
+    row.setAttribute("role", "link");
+    row.setAttribute("aria-label", `Открыть статистику игрока ${playerName}`);
+    row.innerHTML = `
+      <td><a class="nickname-link" href="${playerUrl}">${playerName}</a></td>
+      <td>${numberFormat.format(seasonFloor)}</td>
+      <td>${isActive ? "Активен в сезоне" : "Неактивен"}</td>
     `;
-    list.appendChild(item);
+    const openPlayer = () => {
+      window.location.href = playerUrl;
+    };
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("a")) return;
+      openPlayer();
+    });
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openPlayer();
+    });
+    body.appendChild(row);
   });
 };
 
-const loadData = async (forceReload = false) => {
-  const suffix = forceReload ? `?ts=${Date.now()}` : "";
-  const response = await fetch(`data/stats.json${suffix}`);
-  const data = await response.json();
+let cachedData = null;
+let cachedSeasonMap = null;
+let currentSeasonKey = null;
+
+const getSeasonData = (data, seasonKey) => {
+  if (!data || !seasonKey) {
+    return {
+      summary: data.summary,
+      distributions: data.distributions,
+      timeseries: data.timeseries,
+      monetization: data.monetization,
+      leaderboard: data.leaderboard,
+    };
+  }
+  const seasonStats = data.seasons_stats?.[seasonKey];
+  if (!seasonStats) {
+    return {
+      summary: data.summary,
+      distributions: data.distributions,
+      timeseries: data.timeseries,
+      monetization: data.monetization,
+      leaderboard: data.leaderboard,
+    };
+  }
+  return {
+    summary: { ...data.summary, ...seasonStats.summary },
+    distributions: seasonStats.distributions,
+    timeseries: seasonStats.timeseries,
+    monetization: seasonStats.monetization || data.monetization,
+    leaderboard: seasonStats.leaderboard || data.leaderboard,
+  };
+};
+
+const applySeason = (seasonKey) => {
+  if (!cachedData) return;
+  currentSeasonKey = seasonKey;
+  const seasonData = getSeasonData(cachedData, seasonKey);
+  const summary = seasonData.summary;
+  const monetization = seasonData.monetization;
+  const seasonInfo = cachedSeasonMap?.get(seasonKey) || null;
+  const seasonsOrder =
+    Array.isArray(cachedData.seasons_index) && cachedData.seasons_index.length
+      ? cachedData.seasons_index
+      : Array.from(cachedSeasonMap?.values() || []);
+  const seasonIdx = seasonsOrder.findIndex(
+    (season) => season.season_key === seasonKey
+  );
+  const prevSeasonKey =
+    seasonIdx > 0 ? seasonsOrder[seasonIdx - 1].season_key : null;
+  const prevSeasonStats = prevSeasonKey
+    ? cachedData.seasons_stats?.[prevSeasonKey]
+    : null;
+  const currentPlayers = summary.total_users_season || 0;
+  const prevPlayers = prevSeasonStats?.summary?.total_users_season || 0;
+  const interestDelta =
+    prevPlayers > 0
+      ? ((currentPlayers - prevPlayers) / prevPlayers) * 100
+      : null;
+
+  setText("activeRuns", summary.active_runs);
+  setText("avgRunMinutes", summary.avg_run_minutes, decimalFormat);
+  setText("totalUsersAll", cachedData.summary.total_users_all);
+  setText("totalUsersSeason", summary.total_users_season);
+  setText("totalRunsSeason", summary.total_runs_season);
+  setText("totalXpSeason", summary.total_xp_season);
+  setText("avgMaxFloorSeason", summary.avg_max_floor_season, decimalFormat);
+  setText("totalDeaths", summary.total_deaths);
+  setText("totalKills", summary.total_kills);
+  setText("totalTreasures", summary.total_treasures);
+  setText("totalChests", summary.total_chests);
+  setRaw("tutorialRate", `${cachedData.summary.tutorial_completion_rate}%`);
+  setText("starsBought", monetization.stars_bought);
+  setRaw("seasonInterest", formatPercentDelta(interestDelta));
+  setText("runsToday", summary.runs_today);
+  setText("avgFloorToday", summary.avg_floor_today, decimalFormat);
+  setText("runsWeek", summary.runs_last_7_days);
+  setText("avgFloorWeek", summary.avg_floor_last_7_days, decimalFormat);
+
+  const usersById = new Map(
+    (cachedData.users_list || []).map((user) => [user.id, user])
+  );
+  const leaderboardFallback = (cachedData.seasons || [])
+    .filter((row) => row.season_key === seasonKey)
+    .map((row) => ({
+      username: usersById.get(row.user_id)?.username || `user_${row.user_id}`,
+      max_floor_character: row.max_floor_character || "-",
+      max_floor: Number(row.max_floor || 0),
+      xp: Number(row.xp_gained || 0),
+    }))
+    .sort((a, b) => {
+      if (b.max_floor !== a.max_floor) return b.max_floor - a.max_floor;
+      return b.xp - a.xp;
+    })
+    .slice(0, 10);
+  const leaderboardData =
+    Array.isArray(seasonData.leaderboard) && seasonData.leaderboard.length
+      ? seasonData.leaderboard
+      : leaderboardFallback;
+  buildLeaderboard(leaderboardData);
+
+  const activeRuns = (cachedData.active_runs || []).filter((run) =>
+    isInSeason(run.started_at, seasonInfo)
+  );
+  buildActiveRuns(activeRuns);
+  buildAllPlayers(
+    cachedData.users_list || [],
+    seasonKey,
+    document.getElementById("playerSearch")?.value || ""
+  );
 
   destroyCharts();
-
-  setRaw("generatedAt", formatUtcPlus3(data.generated_at));
-  setText("activeRuns", data.summary.active_runs);
-  setText("avgRunMinutes", data.summary.avg_run_minutes, decimalFormat);
-  setText("totalUsersAll", data.summary.total_users_all);
-  setText("totalUsersSeason", data.summary.total_users_season);
-  setText("totalRunsSeason", data.summary.total_runs_season);
-  setText("totalXpSeason", data.summary.total_xp_season);
-  setText("avgMaxFloorSeason", data.summary.avg_max_floor_season, decimalFormat);
-  setText("totalDeaths", data.summary.total_deaths);
-  setText("totalKills", data.summary.total_kills);
-  setText("totalTreasures", data.summary.total_treasures);
-  setText("totalChests", data.summary.total_chests);
-  setRaw("tutorialRate", `${data.summary.tutorial_completion_rate}%`);
-  setText("starsBought", data.monetization.stars_bought);
-  setText("runsToday", data.summary.runs_today);
-  setText("avgFloorToday", data.summary.avg_floor_today, decimalFormat);
-  setText("runsWeek", data.summary.runs_last_7_days);
-  setText("avgFloorWeek", data.summary.avg_floor_last_7_days, decimalFormat);
-
-  buildLeaderboard(data.leaderboard);
-  buildSeasons(data.seasons);
-  buildActiveRuns(data.active_runs);
-  buildAllPlayers(data.users_list || []);
 
   const chartBuilders = [
     {
       id: "runsPerDayChart",
       build: (canvas) => {
-        const runsPerDay = data.timeseries.runs_per_day;
+        const runsPerDay = seasonData.timeseries.runs_per_day;
         buildChart(canvas, {
           type: "line",
           data: {
@@ -313,7 +522,7 @@ const loadData = async (forceReload = false) => {
     {
       id: "deathsByFloorChart",
       build: (canvas) => {
-        const deathsByFloor = toPairs(data.distributions.deaths_by_floor);
+        const deathsByFloor = toPairs(seasonData.distributions.deaths_by_floor);
         buildChart(canvas, {
           type: "bar",
           data: {
@@ -340,7 +549,7 @@ const loadData = async (forceReload = false) => {
     {
       id: "killsByTypeChart",
       build: (canvas) => {
-        const killsByType = toPairs(data.distributions.kills_by_type);
+        const killsByType = toPairs(seasonData.distributions.kills_by_type);
         buildChart(canvas, {
           type: "bar",
           data: {
@@ -367,7 +576,7 @@ const loadData = async (forceReload = false) => {
     {
       id: "heroRunsChart",
       build: (canvas) => {
-        const heroRuns = toPairs(data.distributions.hero_runs);
+        const heroRuns = toPairs(seasonData.distributions.hero_runs);
         buildChart(canvas, {
           type: "doughnut",
           data: {
@@ -397,7 +606,9 @@ const loadData = async (forceReload = false) => {
     {
       id: "unlockedHeroesChart",
       build: (canvas) => {
-        const unlockedHeroes = toPairs(data.distributions.unlocked_heroes || []);
+        const unlockedHeroes = toPairs(
+          seasonData.distributions.unlocked_heroes || []
+        );
         buildChart(canvas, {
           type: "bar",
           data: {
@@ -424,7 +635,7 @@ const loadData = async (forceReload = false) => {
     {
       id: "runMaxFloorChart",
       build: (canvas) => {
-        const runMaxFloor = toPairs(data.distributions.run_max_floor);
+        const runMaxFloor = toPairs(seasonData.distributions.run_max_floor);
         buildChart(canvas, {
           type: "bar",
           data: {
@@ -451,7 +662,7 @@ const loadData = async (forceReload = false) => {
     {
       id: "actionsChart",
       build: (canvas) => {
-        const actions = toPairs(data.monetization.actions_by_type);
+        const actions = toPairs(monetization.actions_by_type || []);
         buildChart(canvas, {
           type: "bar",
           data: {
@@ -485,9 +696,9 @@ const loadData = async (forceReload = false) => {
             datasets: [
               {
                 data: [
-                  data.monetization.purchase_count,
-                  data.monetization.stars_bought,
-                  data.monetization.levels_bought,
+                  monetization.purchase_count,
+                  monetization.stars_bought,
+                  monetization.levels_bought,
                 ],
                 backgroundColor: [
                   "rgba(139, 94, 60, 0.55)",
@@ -512,6 +723,112 @@ const loadData = async (forceReload = false) => {
   ];
 
   observeCharts(chartBuilders);
+};
+
+const buildSeasonSelect = (seasons, defaultKey) => {
+  const select = document.getElementById("seasonSelect");
+  if (!select) return;
+  select.innerHTML = "";
+  if (!seasons.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Сезоны не найдены";
+    select.appendChild(option);
+    select.disabled = true;
+    return;
+  }
+  select.disabled = false;
+  seasons.forEach((season) => {
+    const option = document.createElement("option");
+    option.value = season.season_key;
+    option.textContent = `Сезон ${season.season_key}`;
+    select.appendChild(option);
+  });
+  if (defaultKey) {
+    select.value = defaultKey;
+  }
+  select.onchange = () => {
+    applySeason(select.value);
+  };
+};
+
+const loadData = async (forceReload = false) => {
+  const suffix = forceReload ? `?ts=${Date.now()}` : "";
+  const response = await fetch(`data/stats.json${suffix}`);
+  const data = await response.json();
+
+  cachedData = data;
+  const seasonsIndexRaw = Array.isArray(data.seasons_index)
+    ? data.seasons_index
+    : [];
+  const seasonsFromSummaries = Array.isArray(data.seasons)
+    ? data.seasons
+        .reduce((acc, item) => {
+          if (!item || !item.season_key) return acc;
+          if (!acc.find((entry) => entry.season_key === item.season_key)) {
+            acc.push({
+              season_key: item.season_key,
+              started_at: item.started_at || null,
+              ended_at: item.ended_at || null,
+            });
+          }
+          return acc;
+        }, [])
+        .sort((a, b) => a.season_key.localeCompare(b.season_key))
+    : [];
+  const seasonsFromStats = Object.keys(data.seasons_stats || {})
+    .sort((a, b) => a.localeCompare(b))
+    .map((season_key) => ({
+      season_key,
+      started_at: null,
+      ended_at: null,
+    }));
+  const seasonsFromSummaryKey = data.summary.current_season_key
+    ? [
+        {
+          season_key: data.summary.current_season_key,
+          started_at: null,
+          ended_at: null,
+        },
+      ]
+    : [];
+  const seasonsIndex =
+    seasonsIndexRaw.length > 0
+      ? seasonsIndexRaw
+      : seasonsFromSummaries.length > 0
+        ? seasonsFromSummaries
+        : seasonsFromStats.length > 0
+          ? seasonsFromStats
+          : seasonsFromSummaryKey;
+
+  cachedSeasonMap = new Map(
+    seasonsIndex.map((season) => [season.season_key, season])
+  );
+
+  setRaw("generatedAt", formatUtcPlus3(data.generated_at));
+  buildAllPlayers(data.users_list || [], data.summary.current_season_key || "");
+  const searchInput = document.getElementById("playerSearch");
+  if (searchInput) {
+    searchInput.value = "";
+    searchInput.oninput = () => {
+      buildAllPlayers(
+        cachedData.users_list || [],
+        currentSeasonKey,
+        searchInput.value
+      );
+    };
+  }
+
+  const defaultSeasonKey =
+    (currentSeasonKey &&
+      cachedSeasonMap &&
+      cachedSeasonMap.has(currentSeasonKey) &&
+      currentSeasonKey) ||
+    data.summary.current_season_key ||
+    seasonsIndex?.[seasonsIndex.length - 1]?.season_key ||
+    null;
+  buildSeasonSelect(seasonsIndex, defaultSeasonKey);
+  applySeason(defaultSeasonKey);
 
   staggerReveal();
 };
@@ -542,4 +859,8 @@ init();
 
 window.addEventListener("beforeunload", () => {
   destroyCharts();
+});
+
+window.addEventListener("resize", () => {
+  setupActiveRunsCollapse();
 });

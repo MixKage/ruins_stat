@@ -11,12 +11,13 @@ const parseDate = (value) => {
 const formatDate = (value) => {
   const parsed = parseDate(value);
   if (!parsed) return "-";
-  const day = String(parsed.getUTCDate()).padStart(2, "0");
-  const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
-  const year = parsed.getUTCFullYear();
-  const hours = String(parsed.getUTCHours()).padStart(2, "0");
-  const minutes = String(parsed.getUTCMinutes()).padStart(2, "0");
-  return `${day}.${month}.${year} ${hours}:${minutes}`;
+  const shifted = new Date(parsed.getTime() + 3 * 60 * 60 * 1000);
+  const day = String(shifted.getUTCDate()).padStart(2, "0");
+  const month = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const year = shifted.getUTCFullYear();
+  const hours = String(shifted.getUTCHours()).padStart(2, "0");
+  const minutes = String(shifted.getUTCMinutes()).padStart(2, "0");
+  return `${day}.${month}.${year} ${hours}:${minutes} GMT+3`;
 };
 
 const getParam = (key) => {
@@ -29,6 +30,16 @@ const setText = (id, value) => {
   if (node) {
     node.textContent = value;
   }
+};
+
+const formatValue = (value) => {
+  if (value === null || value === undefined || value === "") return "?";
+  if (typeof value === "number") {
+    return Number.isInteger(value)
+      ? numberFormat.format(value)
+      : decimalFormat.format(Math.round(value * 100) / 100);
+  }
+  return value;
 };
 
 const renderList = (id, items, emptyLabel) => {
@@ -72,13 +83,13 @@ const revealSections = () => {
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
+        if (entry.isIntersecting || entry.intersectionRatio > 0.01) {
           entry.target.classList.add("is-visible");
           observer.unobserve(entry.target);
         }
       });
     },
-    { threshold: 0.2 }
+    { threshold: 0.01, rootMargin: "0px 0px -10% 0px" }
   );
   items.forEach((item) => observer.observe(item));
 };
@@ -125,6 +136,7 @@ const init = async () => {
   const actions = details.actions || [];
   const broadcasts = details.broadcasts || [];
   const runs = details.runs || [];
+  const badges = details.badges || [];
   const endedRuns = runs.filter((run) => run.ended_at);
   const runDurations = endedRuns
     .map((run) => {
@@ -220,13 +232,13 @@ const init = async () => {
       <div class="run-section">
         <strong>Характеристики героя</strong>
         <ul>
-          <li><span>HP</span> <strong>${run.player.hp ?? "?"}/${run.player.hp_max ?? "?"}</strong></li>
-          <li><span>ОД</span> <strong>${run.player.ap ?? "?"}/${run.player.ap_max ?? "?"}</strong></li>
-          <li><span>Броня</span> <strong>${run.player.armor ?? "?"}</strong></li>
-          <li><span>Точность</span> <strong>${run.player.accuracy ?? "?"}</strong></li>
-          <li><span>Уклонение</span> <strong>${run.player.evasion ?? "?"}</strong></li>
-          <li><span>Сила</span> <strong>${run.player.power ?? "?"}</strong></li>
-          <li><span>Удача</span> <strong>${run.player.luck ?? "?"}</strong></li>
+          <li><span>HP</span> <strong>${formatValue(run.player.hp)}/${formatValue(run.player.hp_max)}</strong></li>
+          <li><span>ОД</span> <strong>${formatValue(run.player.ap)}/${formatValue(run.player.ap_max)}</strong></li>
+          <li><span>Броня</span> <strong>${formatValue(run.player.armor)}</strong></li>
+          <li><span>Точность</span> <strong>${formatValue(run.player.accuracy)}</strong></li>
+          <li><span>Уклонение</span> <strong>${formatValue(run.player.evasion)}</strong></li>
+          <li><span>Сила</span> <strong>${formatValue(run.player.power)}</strong></li>
+          <li><span>Удача</span> <strong>${formatValue(run.player.luck)}</strong></li>
           <li><span>Оружие</span> <strong>${run.player.weapon || "неизвестно"}</strong></li>
         </ul>
       </div>
@@ -240,7 +252,7 @@ const init = async () => {
                     (enemy) => `
                   <li>
                     <span>${enemy.name || "Неизвестный враг"}</span>
-                    <strong>${enemy.hp ?? "?"}/${enemy.max_hp ?? "?"} HP</strong>
+                    <strong>${formatValue(enemy.hp)}/${formatValue(enemy.max_hp)} HP</strong>
                   </li>
                 `
                   )
@@ -342,13 +354,26 @@ const init = async () => {
 
   renderList(
     "playerBadges",
-    (details.badges || []).map(
+    badges.map(
       (badge) =>
         `<span>${badge.badge_id}</span> <strong>${numberFormat.format(
           badge.count
         )} шт.</strong>`
     ),
     "Нет наград."
+  );
+
+  setText("widgetXp", numberFormat.format(details.xp));
+  setText("widgetMaxFloor", numberFormat.format(details.max_floor));
+  renderList(
+    "widgetBadges",
+    badges.map(
+      (badge) =>
+        `<span>${badge.badge_id}</span> <strong>${numberFormat.format(
+          badge.count
+        )} шт.</strong>`
+    ),
+    "Наград пока нет."
   );
 
   const runSummary = document.getElementById("playerRunSummary");
