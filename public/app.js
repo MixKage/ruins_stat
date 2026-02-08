@@ -116,6 +116,52 @@ const parseDateValue = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const buildDailyTimeline = (seriesList) => {
+  const dateSet = new Set();
+  (seriesList || []).forEach((list) => {
+    (list || []).forEach((item) => {
+      if (item && item.date) {
+        dateSet.add(item.date);
+      }
+    });
+  });
+  const dates = Array.from(dateSet).sort();
+  const labels = dates.map(formatDateOnly);
+  const valuesFor = (list) => {
+    const map = new Map(
+      (list || []).map((item) => [item.date, item.count])
+    );
+    return dates.map((date) => map.get(date) ?? 0);
+  };
+  return { dates, labels, valuesFor };
+};
+
+const buildMonthlySeries = (items) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return { labels: [], values: [] };
+  }
+  const map = new Map(items.map((item) => [item.date, item.count]));
+  const parsedDates = items
+    .map((item) => parseDateValue(item.date))
+    .filter((value) => value);
+  if (!parsedDates.length) {
+    return { labels: [], values: [] };
+  }
+  const anchor = parsedDates.reduce((max, value) => (value > max ? value : max));
+  const year = anchor.getUTCFullYear();
+  const month = anchor.getUTCMonth();
+  const start = new Date(Date.UTC(year, month, 1));
+  const end = new Date(Date.UTC(year, month + 1, 0));
+  const labels = [];
+  const values = [];
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    const iso = d.toISOString().slice(0, 10);
+    labels.push(formatDateOnly(iso));
+    values.push(map.get(iso) ?? 0);
+  }
+  return { labels, values };
+};
+
 const isInSeason = (value, season) => {
   if (!season) return true;
   const dateValue = parseDateValue(value);
@@ -555,19 +601,58 @@ const applySeason = (seasonKey) => {
     {
       id: "runsPerDayChart",
       build: (canvas) => {
-        const runsPerDay = seasonData.timeseries.runs_per_day;
+        const runsPerDay = seasonData.timeseries.runs_per_day || [];
+        const activePlayers = seasonData.timeseries.active_players_per_day || [];
+        const timeline = buildDailyTimeline([runsPerDay, activePlayers]);
         buildChart(canvas, {
           type: "line",
           data: {
-            labels: runsPerDay.map((item) => formatDateOnly(item.date)),
+            labels: timeline.labels,
             datasets: [
               {
                 label: "Забеги",
-                data: runsPerDay.map((item) => item.count),
+                data: timeline.valuesFor(runsPerDay),
                 borderColor: palette.moss,
                 backgroundColor: "rgba(61, 91, 74, 0.25)",
                 tension: 0.35,
                 fill: true,
+              },
+              {
+                label: "Игроки",
+                data: timeline.valuesFor(activePlayers),
+                borderColor: palette.sun,
+                backgroundColor: "rgba(127, 103, 70, 0.15)",
+                tension: 0.35,
+                fill: true,
+              },
+            ],
+          },
+          options: {
+            ...baseOptions,
+            plugins: { legend: { position: "bottom" } },
+            scales: {
+              y: { ticks: { precision: 0 } },
+              x: { ticks: { maxRotation: 0 } },
+            },
+          },
+        });
+      },
+    },
+    {
+      id: "newPlayersChart",
+      build: (canvas) => {
+        const newPlayers = seasonData.timeseries.new_players_per_day || [];
+        const monthSeries = buildMonthlySeries(newPlayers);
+        buildChart(canvas, {
+          type: "bar",
+          data: {
+            labels: monthSeries.labels,
+            datasets: [
+              {
+                label: "Новые игроки",
+                data: monthSeries.values,
+                backgroundColor: "rgba(139, 94, 60, 0.55)",
+                borderRadius: 6,
               },
             ],
           },

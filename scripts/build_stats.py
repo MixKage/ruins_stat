@@ -152,6 +152,7 @@ def compute_season_stats(
     user_map,
     runs,
     user_season_stats,
+    first_run_by_user,
     enemy_name_map,
     hero_name_map,
 ):
@@ -179,6 +180,7 @@ def compute_season_stats(
 
     run_max_floor = Counter()
     runs_per_day = Counter()
+    active_players_per_day = defaultdict(set)
     run_durations = []
     season_hero_runs = Counter()
     season_run_user_ids = set()
@@ -199,6 +201,9 @@ def compute_season_stats(
         run_max_floor[str(floor)] += 1
         if started:
             runs_per_day[started.date().isoformat()] += 1
+            active_players_per_day[started.date().isoformat()].add(
+                row["user_id"]
+            )
             if started.date() == today:
                 runs_today += 1
                 today_floor_sum += floor
@@ -276,7 +281,21 @@ def compute_season_stats(
         "runs_per_day": [
             {"date": date_value, "count": count}
             for date_value, count in sorted(runs_per_day.items())
-        ]
+        ],
+        "active_players_per_day": [
+            {"date": date_value, "count": len(players)}
+            for date_value, players in sorted(active_players_per_day.items())
+        ],
+        "new_players_per_day": [
+            {"date": date_value, "count": count}
+            for date_value, count in sorted(
+                Counter(
+                    first_run.date().isoformat()
+                    for first_run in first_run_by_user.values()
+                    if is_in_season(first_run, season_start, season_end)
+                ).items()
+            )
+        ],
     }
 
     leaderboard = sorted(
@@ -344,6 +363,14 @@ def main():
 
     users = query_all(cur, "select * from users")
     runs = query_all(cur, "select * from runs")
+    first_run_by_user = {}
+    for row in runs:
+        started = parse_dt(row["started_at"])
+        if not started:
+            continue
+        existing = first_run_by_user.get(row["user_id"])
+        if not existing or started < existing:
+            first_run_by_user[row["user_id"]] = started
     user_stats = query_all(cur, "select * from user_stats")
     user_badges = query_all(cur, "select * from user_badges")
     user_broadcasts = query_all(cur, "select * from user_broadcasts")
@@ -461,6 +488,7 @@ def main():
             user_map=user_map,
             runs=runs,
             user_season_stats=user_season_stats,
+            first_run_by_user=first_run_by_user,
             enemy_name_map=enemy_name_map,
             hero_name_map=hero_name_map,
         )
@@ -723,7 +751,11 @@ def main():
                 "unlocked_heroes": [],
                 "run_max_floor": [],
             },
-            "timeseries": {"runs_per_day": []},
+            "timeseries": {
+                "runs_per_day": [],
+                "active_players_per_day": [],
+                "new_players_per_day": [],
+            },
         }
 
     current_monetization = {}
