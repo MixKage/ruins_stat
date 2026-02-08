@@ -61,6 +61,19 @@ const formatValue = (value) => {
   return value;
 };
 
+const getLevelInfo = (xp) => {
+  let level = 1;
+  let remaining = Math.max(0, Math.floor(Number(xp) || 0));
+  let need = 100;
+  while (remaining >= need) {
+    remaining -= need;
+    level += 1;
+    need = 100 + 25 * (level - 1);
+    if (level > 10000) break;
+  }
+  return { level, remaining, need };
+};
+
 const formatUtcPlus3 = (isoString) => {
   const parsed = new Date(isoString);
   if (Number.isNaN(parsed.getTime())) {
@@ -364,6 +377,7 @@ const buildAllPlayers = (players, seasonKey, query = "") => {
       : player.max_floor;
     const isActive =
       seasonKey && (player.season_participation || []).includes(seasonKey);
+    const levelInfo = getLevelInfo(player.xp);
     const playerUrl = `player.html?id=${player.id}`;
     const playerName = player.username || `ID ${player.id}`;
     const row = document.createElement("tr");
@@ -376,6 +390,7 @@ const buildAllPlayers = (players, seasonKey, query = "") => {
     row.innerHTML = `
       <td><a class="nickname-link" href="${playerUrl}">${playerName}</a></td>
       <td>${numberFormat.format(seasonFloor)}</td>
+      <td>${numberFormat.format(levelInfo.level)}</td>
       <td>${isActive ? "Активен в сезоне" : "Неактивен"}</td>
     `;
     const openPlayer = () => {

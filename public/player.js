@@ -42,6 +42,19 @@ const formatValue = (value) => {
   return value;
 };
 
+const getLevelInfo = (xp) => {
+  let level = 1;
+  let remaining = Math.max(0, Math.floor(Number(xp) || 0));
+  let need = 100;
+  while (remaining >= need) {
+    remaining -= need;
+    level += 1;
+    need = 100 + 25 * (level - 1);
+    if (level > 10000) break;
+  }
+  return { level, remaining, need };
+};
+
 const renderList = (id, items, emptyLabel) => {
   const list = document.getElementById(id);
   if (!list) return;
@@ -123,11 +136,14 @@ const init = async () => {
     return;
   }
 
+  const levelInfo = getLevelInfo(details.xp);
   setText("playerName", details.username);
   setText(
     "playerMeta",
     `ID ${details.id} · XP ${numberFormat.format(
       details.xp
+    )} · Уровень ${numberFormat.format(
+      levelInfo.level
     )} · Максимальный этаж ${numberFormat.format(details.max_floor)}`
   );
 
@@ -195,6 +211,7 @@ const init = async () => {
       `<span>Обучение</span> <strong>${details.tutorial_done ? "пройдено" : "нет"}</strong>`,
       `<span>Макс этаж</span> <strong>${numberFormat.format(details.max_floor)}</strong>`,
       `<span>XP</span> <strong>${numberFormat.format(details.xp)}</strong>`,
+      `<span>Уровень</span> <strong>${numberFormat.format(levelInfo.level)}</strong>`,
     ],
     "Нет данных."
   );
