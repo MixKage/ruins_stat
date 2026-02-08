@@ -200,6 +200,14 @@ p {
   max-width: 100%;
 }
 
+.panel-card--spaced {
+  margin-top: 2rem;
+}
+
+.chart-grid + .panel-card {
+  margin-top: 2rem;
+}
+
 .panel-card ul {
   list-style: none;
   padding: 0;

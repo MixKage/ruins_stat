@@ -471,9 +471,11 @@ def main():
             "xp_from_purchases": 0,
             "stars_spent": 0,
             "actions_by_type": [],
+            "spent_by_user": [],
         }
         if season_start or season_end:
             season_actions_by_type = Counter()
+            season_spent_by_user = Counter()
             for row in star_purchases:
                 created_at = parse_dt(row["created_at"])
                 if not is_in_season(created_at, season_start, season_end):
@@ -490,8 +492,18 @@ def main():
                 action = row["action"] or "unknown"
                 season_actions_by_type[action] += 1
                 monetization["stars_spent"] += int(row["stars"] or 0)
+                season_spent_by_user[row["user_id"]] += int(row["stars"] or 0)
 
             monetization["actions_by_type"] = season_actions_by_type.most_common()
+            monetization["spent_by_user"] = [
+                {
+                    "user_id": user_id,
+                    "username": user_map.get(user_id, {}).get("username")
+                    or f"user_{user_id}",
+                    "stars_spent": int(stars_spent),
+                }
+                for user_id, stars_spent in season_spent_by_user.most_common()
+            ]
 
         season_stat["monetization"] = monetization
         seasons_stats[season_key] = season_stat
@@ -611,6 +623,18 @@ def main():
                 "stars": int(row["stars"] or 0),
             }
         )
+    spent_by_user = Counter()
+    for row in star_actions:
+        spent_by_user[row["user_id"]] += int(row["stars"] or 0)
+    spent_by_user_list = [
+        {
+            "user_id": user_id,
+            "username": user_map.get(user_id, {}).get("username")
+            or f"user_{user_id}",
+            "stars_spent": int(stars_spent),
+        }
+        for user_id, stars_spent in spent_by_user.most_common()
+    ]
     active_runs_details = []
     for row in runs:
         if not row["is_active"]:
@@ -710,6 +734,7 @@ def main():
         season_xp_from_purchases = 0
         season_stars_spent = 0
         season_actions_by_type = Counter()
+        season_spent_by_user = Counter()
 
         for row in star_purchases:
             created_at = parse_dt(row["created_at"])
@@ -727,6 +752,7 @@ def main():
             action = row["action"] or "unknown"
             season_actions_by_type[action] += 1
             season_stars_spent += int(row["stars"] or 0)
+            season_spent_by_user[row["user_id"]] += int(row["stars"] or 0)
 
         current_monetization = {
             "purchase_count": season_purchase_count,
@@ -735,6 +761,15 @@ def main():
             "xp_from_purchases": season_xp_from_purchases,
             "stars_spent": season_stars_spent,
             "actions_by_type": season_actions_by_type.most_common(),
+            "spent_by_user": [
+                {
+                    "user_id": user_id,
+                    "username": user_map.get(user_id, {}).get("username")
+                    or f"user_{user_id}",
+                    "stars_spent": int(stars_spent),
+                }
+                for user_id, stars_spent in season_spent_by_user.most_common()
+            ],
         }
     else:
         current_monetization = {
@@ -744,6 +779,7 @@ def main():
             "xp_from_purchases": xp_from_purchases,
             "stars_spent": stars_spent,
             "actions_by_type": actions_by_type.most_common(),
+            "spent_by_user": spent_by_user_list,
         }
 
     stats = {

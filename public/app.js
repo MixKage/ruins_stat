@@ -239,6 +239,30 @@ const buildLeaderboard = (leaderboard) => {
   });
 };
 
+const buildStarsSpentTable = (rows) => {
+  const body = document.getElementById("starsSpentBody");
+  if (!body) return;
+  body.innerHTML = "";
+  if (!Array.isArray(rows) || rows.length === 0) {
+    const item = document.createElement("tr");
+    item.innerHTML = "<td colspan=\"2\">Нет данных по выбранному сезону</td>";
+    body.appendChild(item);
+    return;
+  }
+  rows.forEach((entry) => {
+    const row = document.createElement("tr");
+    const playerName = entry.username || `ID ${entry.user_id}`;
+    const playerCell = entry.user_id
+      ? `<a class="nickname-link" href="player.html?id=${entry.user_id}">${playerName}</a>`
+      : playerName;
+    row.innerHTML = `
+      <td>${playerCell}</td>
+      <td>${numberFormat.format(entry.stars_spent || 0)}</td>
+    `;
+    body.appendChild(row);
+  });
+};
+
 const updateActiveRunsToggle = (visibleCount, totalCount, expanded) => {
   const controls = document.getElementById("activeRunsControls");
   const toggle = document.getElementById("activeRunsToggle");
@@ -508,6 +532,12 @@ const applySeason = (seasonKey) => {
       ? seasonData.leaderboard
       : leaderboardFallback;
   buildLeaderboard(leaderboardData);
+
+  const spentByUser =
+    seasonData.monetization?.spent_by_user ||
+    cachedData.monetization?.spent_by_user ||
+    [];
+  buildStarsSpentTable(spentByUser);
 
   const activeRuns = (cachedData.active_runs || []).filter((run) =>
     isInSeason(run.started_at, seasonInfo)
