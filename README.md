@@ -50,6 +50,7 @@ docker compose up --build
 ## Страницы
 - `index.html` — общий дашборд
 - `player.html?id=<id>` — карточка игрока
+- `feedback.html` — отдельная страница отзывов с фильтрацией и сортировкой по типам
 
 ## Переменные окружения
 - `DATABASE_URL` — строка подключения PostgreSQL

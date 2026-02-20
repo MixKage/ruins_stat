@@ -11,6 +11,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_GAME_DATA_DIR = os.path.join(BASE_DIR, "data")
 OUT_DIR = os.path.join(BASE_DIR, "public", "data")
 OUT_PATH = os.path.join(OUT_DIR, "stats.json")
+FEEDBACK_ALLOWED_CATEGORIES = {"bug", "balance", "idea", "other"}
+FEEDBACK_ALLOWED_SOURCES = {"menu", "post_run", "profile", "other"}
+FEEDBACK_ALLOWED_STATUSES = {"new", "in_progress", "resolved", "rejected"}
 
 
 def parse_json(text, default):
@@ -103,6 +106,18 @@ def json_default(value):
     if isinstance(value, date):
         return value.isoformat()
     return str(value)
+
+
+def normalize_text(value, fallback):
+    text = str(value or "").strip()
+    if not text:
+        return fallback
+    return text
+
+
+def normalize_feedback_value(value, allowed, fallback):
+    normalized = normalize_text(value, fallback).lower()
+    return normalized if normalized in allowed else fallback
 
 
 def extract_hero_id(state):
@@ -379,6 +394,35 @@ def main():
     season_history = query_all(cur, "select * from season_history")
     star_purchases = query_all(cur, "select * from star_purchases")
     star_actions = query_all(cur, "select * from star_actions")
+    feedback_entries = []
+    try:
+        feedback_entries = query_all(
+            cur,
+            """
+            select
+                id,
+                user_id,
+                telegram_id,
+                username,
+                category,
+                message,
+                source,
+                run_id,
+                context_json,
+                status,
+                admin_note,
+                handled_by_telegram_id,
+                handled_at,
+                created_at,
+                updated_at
+            from feedback_entries
+            order by created_at desc
+            limit 2000
+            """,
+        )
+    except psycopg2.Error:
+        conn.rollback()
+        feedback_entries = []
 
     total_users = len(users)
     total_runs = len(runs)
@@ -578,6 +622,52 @@ def main():
             "winners": parse_json(row["winners_json"], {}),
             "summary": parse_json(row["summary_json"], {}),
         }
+
+    feedback_items = []
+    for row in feedback_entries:
+        user_id = row.get("user_id")
+        username = normalize_text(
+            row.get("username") or user_map.get(user_id, {}).get("username"),
+            f"user_{user_id}" if user_id is not None else "unknown",
+        )
+        context = parse_json(row.get("context_json"), {})
+        if not isinstance(context, dict):
+            context = {}
+        feedback_items.append(
+            {
+                "id": int(row.get("id") or 0),
+                "user_id": int(user_id) if user_id is not None else None,
+                "telegram_id": int(row.get("telegram_id") or 0),
+                "username": username,
+                "category": normalize_feedback_value(
+                    row.get("category"),
+                    FEEDBACK_ALLOWED_CATEGORIES,
+                    "other",
+                ),
+                "message": normalize_text(row.get("message"), ""),
+                "source": normalize_feedback_value(
+                    row.get("source"),
+                    FEEDBACK_ALLOWED_SOURCES,
+                    "other",
+                ),
+                "run_id": int(row.get("run_id")) if row.get("run_id") is not None else None,
+                "context": context,
+                "status": normalize_feedback_value(
+                    row.get("status"),
+                    FEEDBACK_ALLOWED_STATUSES,
+                    "new",
+                ),
+                "admin_note": normalize_text(row.get("admin_note"), ""),
+                "handled_by_telegram_id": (
+                    int(row.get("handled_by_telegram_id"))
+                    if row.get("handled_by_telegram_id") is not None
+                    else None
+                ),
+                "handled_at": row.get("handled_at"),
+                "created_at": row.get("created_at"),
+                "updated_at": row.get("updated_at"),
+            }
+        )
 
     user_stats_map = {row["user_id"]: row for row in user_stats}
     badge_map = defaultdict(list)
@@ -832,6 +922,7 @@ def main():
         "seasons_stats": seasons_stats,
         "seasons": season_summaries,
         "season_history": season_history_map,
+        "feedback": feedback_items,
         "leaderboard": leaderboard,
         "active_runs": active_runs_details,
         "users_list": [

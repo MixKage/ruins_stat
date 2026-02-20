@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Отзывы - Статистика руин</title>
+  <link rel="icon" href="ruins.ico" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="feedback.js" defer></script>
+</head>
+
+<body>
+  <div class="background-glow"></div>
+  <header class="hero hero--player">
+    <div class="hero__content">
+      <p class="eyebrow">Рогалик: Руины</p>
+      <h1>Отзывы игроков</h1>
+      <p class="lead">
+        Обратная связь из игры: баги, баланс, идеи и прочие комментарии.
+      </p>
+      <div class="hero__meta">
+        <div class="meta-card">
+          <span class="meta-label">Сформировано</span>
+          <span class="meta-value" id="feedbackGeneratedAt">--</span>
+        </div>
+        <div class="meta-card">
+          <span class="meta-label">Всего отзывов</span>
+          <span class="meta-value" id="feedbackTotal">0</span>
+        </div>
+      </div>
+      <div class="page-links">
+        <a class="refresh-button" href="index.html">Вернуться на дашборд</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section reveal">
+      <div class="section__header">
+        <h2>Лента feedback</h2>
+        <p>Фильтрация и сортировка по типу отзывов.</p>
+      </div>
+
+      <div class="panel-card panel-card--wide feedback-toolbar">
+        <div class="feedback-controls">
+          <label class="feedback-control">
+            <span class="meta-label">Тип</span>
+            <select id="feedbackTypeFilter" class="feedback-select">
+              <option value="all">Все</option>
+            </select>
+          </label>
+          <label class="feedback-control">
+            <span class="meta-label">Сортировка</span>
+            <select id="feedbackSort" class="feedback-select">
+              <option value="newest">Сначала новые</option>
+              <option value="oldest">Сначала старые</option>
+              <option value="type">По типу</option>
+            </select>
+          </label>
+          <div class="feedback-control feedback-control--button">
+            <button id="feedbackRefresh" class="refresh-button" type="button">
+              Обновить данные
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="feedbackSummary" class="summary-grid feedback-summary"></div>
+      <div id="feedbackList" class="feedback-list"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Панель статистики руин - by ADC STUDIO.</p>
+  </footer>
+</body>
+
+</html>

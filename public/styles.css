@@ -156,6 +156,9 @@ p {
 }
 
 .refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   border-radius: 14px;
   padding: 0.85rem 1rem;
@@ -168,6 +171,7 @@ p {
   background: linear-gradient(135deg, #2c3f36, #3d5b4a);
   box-shadow: 0 12px 24px rgba(13, 18, 16, 0.5);
   cursor: pointer;
+  text-decoration: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -427,6 +431,13 @@ canvas {
   grid-template-columns: 1fr;
 }
 
+.page-links {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .player-awards-widget {
   position: fixed;
   right: 1.25rem;
@@ -529,6 +540,156 @@ canvas {
   justify-content: space-between;
   gap: 0.75rem;
   font-size: 0.9rem;
+}
+
+.feedback-toolbar {
+  margin-bottom: 1.5rem;
+}
+
+.feedback-controls {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.feedback-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.feedback-control--button {
+  justify-content: flex-end;
+}
+
+.feedback-select {
+  background: rgba(10, 12, 14, 0.8);
+  color: var(--ink);
+  border: 1px solid rgba(85, 77, 68, 0.8);
+  border-radius: 10px;
+  padding: 0.5rem 0.55rem;
+  font-size: 0.9rem;
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+}
+
+.feedback-select:focus {
+  outline: none;
+  border-color: rgba(127, 91, 58, 0.8);
+}
+
+.feedback-summary {
+  margin-bottom: 1.5rem;
+}
+
+.feedback-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.feedback-card {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.feedback-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.feedback-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.feedback-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.feedback-badge--category-bug {
+  background: rgba(132, 47, 47, 0.35);
+  color: #efb9b9;
+}
+
+.feedback-badge--category-balance {
+  background: rgba(118, 100, 43, 0.4);
+  color: #e9d89c;
+}
+
+.feedback-badge--category-idea {
+  background: rgba(48, 102, 74, 0.38);
+  color: #b4d8c3;
+}
+
+.feedback-badge--category-other {
+  background: rgba(85, 77, 68, 0.45);
+  color: #d2c6b7;
+}
+
+.feedback-badge--status-new {
+  background: rgba(74, 90, 134, 0.35);
+  color: #c5d3ff;
+}
+
+.feedback-badge--status-in_progress {
+  background: rgba(131, 103, 44, 0.35);
+  color: #f1deb3;
+}
+
+.feedback-badge--status-resolved {
+  background: rgba(40, 107, 67, 0.35);
+  color: #b7e6cb;
+}
+
+.feedback-badge--status-rejected {
+  background: rgba(100, 78, 73, 0.35);
+  color: #dec3bf;
+}
+
+.feedback-badge--source {
+  background: rgba(57, 71, 88, 0.38);
+  color: #c4d1df;
+}
+
+.feedback-date {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.feedback-message {
+  margin: 0;
+  font-size: 0.98rem;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.feedback-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.feedback-note {
+  margin: 0;
+  color: #d8c6ab;
+  font-size: 0.88rem;
+}
+
+.feedback-empty {
+  text-align: center;
+  color: var(--ink-soft);
 }
 
 .footer {
