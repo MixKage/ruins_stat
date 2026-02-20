@@ -309,15 +309,19 @@ const buildStarsSpentTable = (rows) => {
   });
 };
 
+let activeRunsExpanded = false;
+
 const updateActiveRunsToggle = (visibleCount, totalCount, expanded) => {
   const controls = document.getElementById("activeRunsControls");
   const toggle = document.getElementById("activeRunsToggle");
   if (!controls || !toggle) return;
   if (totalCount <= visibleCount) {
     controls.hidden = true;
+    toggle.setAttribute("aria-expanded", "false");
     return;
   }
   controls.hidden = false;
+  toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
   toggle.textContent = expanded
     ? "Свернуть"
     : `Показать все (${totalCount - visibleCount})`;
@@ -342,18 +346,23 @@ const setupActiveRunsCollapse = () => {
 
   const cards = Array.from(container.querySelectorAll(".run-card"));
   if (!cards.length || cards[0].textContent === "Нет активных забегов.") {
+    activeRunsExpanded = false;
     controls.hidden = true;
     return;
   }
 
+  cards.forEach((card) => card.classList.remove("run-card--hidden"));
   const firstRowTop = cards[0].offsetTop;
-  const visibleCount = cards.filter((card) => card.offsetTop === firstRowTop).length || 1;
-  let expanded = false;
+  const visibleCount =
+    cards.filter((card) => card.offsetTop === firstRowTop).length || 1;
+  if (cards.length <= visibleCount) {
+    activeRunsExpanded = false;
+  }
 
-  applyActiveRunsCollapse(expanded, visibleCount);
+  applyActiveRunsCollapse(activeRunsExpanded, visibleCount);
   toggle.onclick = () => {
-    expanded = !expanded;
-    applyActiveRunsCollapse(expanded, visibleCount);
+    activeRunsExpanded = !activeRunsExpanded;
+    applyActiveRunsCollapse(activeRunsExpanded, visibleCount);
   };
 };
 
@@ -361,6 +370,7 @@ const buildActiveRuns = (runs) => {
   const container = document.getElementById("activeRunsList");
   const controls = document.getElementById("activeRunsControls");
   if (!container) return;
+  activeRunsExpanded = false;
   container.innerHTML = "";
   if (!runs.length) {
     container.innerHTML = "<div class=\"run-card\">Нет активных забегов.</div>";
