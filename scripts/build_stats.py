@@ -206,6 +206,7 @@ def compute_season_stats(
     runs_last_7_days = 0
     today_floor_sum = 0
     week_floor_sum = 0
+    today_runs_by_user = Counter()
 
     for row in runs:
         started = parse_dt(row["started_at"])
@@ -222,6 +223,7 @@ def compute_season_stats(
             if started.date() == today:
                 runs_today += 1
                 today_floor_sum += floor
+                today_runs_by_user[row["user_id"]] += 1
             if week_start <= started.date() <= today:
                 runs_last_7_days += 1
                 week_floor_sum += floor
@@ -260,6 +262,18 @@ def compute_season_stats(
         2,
     ) if total_users_season else 0
 
+    today_players = [
+        {
+            "user_id": user_id,
+            "username": user_map.get(user_id, {}).get("username") or f"user_{user_id}",
+            "runs_today": int(runs_count),
+        }
+        for user_id, runs_count in today_runs_by_user.items()
+    ]
+    today_players.sort(
+        key=lambda item: (-item["runs_today"], item["username"].lower())
+    )
+
     summary = {
         "season_key": season_key,
         "total_users_season": total_users_season,
@@ -280,6 +294,7 @@ def compute_season_stats(
         "avg_floor_last_7_days": safe_round(
             (week_floor_sum / runs_last_7_days), 2
         ) if runs_last_7_days else 0,
+        "today_players": today_players,
     }
 
     distributions = {
@@ -833,6 +848,7 @@ def main():
                 "runs_last_7_days": 0,
                 "avg_floor_today": 0,
                 "avg_floor_last_7_days": 0,
+                "today_players": [],
             },
             "distributions": {
                 "deaths_by_floor": [],

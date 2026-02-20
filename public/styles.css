@@ -323,6 +323,10 @@ canvas {
   min-width: 520px;
 }
 
+.leaderboard-table--compact {
+  min-width: 0;
+}
+
 .leaderboard-table th,
 .leaderboard-table td {
   padding: 0.65rem 0.75rem;
@@ -362,6 +366,11 @@ canvas {
 
 .players-table-wrap {
   overflow-x: auto;
+}
+
+.today-players-wrap {
+  max-height: 260px;
+  overflow: auto;
 }
 
 .players-table {

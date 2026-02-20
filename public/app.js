@@ -309,6 +309,32 @@ const buildStarsSpentTable = (rows) => {
   });
 };
 
+const buildTodayPlayersTable = (rows) => {
+  const body = document.getElementById("todayPlayersBody");
+  if (!body) return;
+  body.innerHTML = "";
+  if (!Array.isArray(rows) || rows.length === 0) {
+    const item = document.createElement("tr");
+    item.innerHTML = "<td colspan=\"2\">Сегодня запусков не было</td>";
+    body.appendChild(item);
+    return;
+  }
+  rows.forEach((entry) => {
+    const row = document.createElement("tr");
+    const userId = entry.user_id ?? entry.id ?? null;
+    const playerName = entry.username || (userId ? `ID ${userId}` : "Неизвестный");
+    const playerCell = userId
+      ? `<a class="nickname-link" href="player.html?id=${userId}">${playerName}</a>`
+      : playerName;
+    const runsToday = Number(entry.runs_today);
+    row.innerHTML = `
+      <td>${playerCell}</td>
+      <td>${numberFormat.format(Number.isFinite(runsToday) ? runsToday : 0)}</td>
+    `;
+    body.appendChild(row);
+  });
+};
+
 let activeRunsExpanded = false;
 
 const updateActiveRunsToggle = (visibleCount, totalCount, expanded) => {
@@ -594,6 +620,7 @@ const applySeason = (seasonKey) => {
     cachedData.monetization?.spent_by_user ||
     [];
   buildStarsSpentTable(spentByUser);
+  buildTodayPlayersTable(summary.today_players || []);
 
   const activeRuns = (cachedData.active_runs || []).filter((run) =>
     isInSeason(run.started_at, seasonInfo)
